@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { getPackages } from '@lerna/project';
+import assert from 'assert';
 import fs from 'fs';
 import graphviz from 'graphviz';
 import yargs from 'yargs';
@@ -44,6 +45,23 @@ getPackages().then((packages) => {
 	}
 
 	packages.forEach((pkg) => {
+		if (pkg.name === '@moodlenet/core') {
+			return;
+		}
+		assert(pkg.peerDependencies, `no peerDependencies in ${pkg.name} !`);
+		assert(pkg.devDependencies, `no devDependencies in ${pkg.name} !`);
+		const peers = Object.entries(pkg.peerDependencies).map(
+			([name, version]) => `${name}@${version}`
+		);
+		const devs = Object.entries(pkg.devDependencies).map(
+			([name, version]) => `${name}@${version}`
+		);
+		assert(
+			!!peers.filter((peer) => !devs.includes(peer)).length &&
+				!!devs.filter((dev) => !peers.includes(dev)).length,
+			`peers and dev deps not congruent in ${pkg.name}`
+		);
+
 		const node = g.addNode(pkg.name);
 
 		if (pkg.private) {
@@ -58,14 +76,14 @@ getPackages().then((packages) => {
 			});
 		}
 
-		if (pkg.devDependencies) {
-			Object.keys(pkg.devDependencies).forEach((depName) => {
-				if (packages.find((p) => p.name === depName)) {
-					const edge = g.addEdge(node, depName);
-					edge.set('style', 'dashed');
-				}
-			});
-		}
+		// if (pkg.devDependencies) {
+		// 	Object.keys(pkg.devDependencies).forEach((depName) => {
+		// 		if (packages.find((p) => p.name === depName)) {
+		// 			const edge = g.addEdge(node, depName);
+		// 			edge.set('style', 'dashed');
+		// 		}
+		// 	});
+		// }
 
 		if (pkg.peerDependencies) {
 			Object.keys(pkg.peerDependencies).forEach((depName) => {
