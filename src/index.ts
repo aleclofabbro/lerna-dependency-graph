@@ -11,6 +11,22 @@ const argv = yargs
 	.version()
 	.alias('version', 'v')
 	.options({
+		ignorePkgs: {
+			alias: 'i',
+			description: 'ignore packages.',
+			type: 'string',
+			array: true,
+		},
+		excludeDev: {
+			alias: 'D',
+			description: 'exclude dev dependencies.',
+			boolean: true,
+		},
+		excludePeer: {
+			alias: 'P',
+			description: 'exclude peer dependencies.',
+			boolean: true,
+		},
 		graphvizCommand: {
 			alias: 'c',
 			default: 'dot',
@@ -51,29 +67,35 @@ getPackages().then((packages) => {
 		}
 
 		if (pkg.dependencies) {
-			Object.keys(pkg.dependencies).forEach((depName) => {
-				if (packages.find((p) => p.name === depName)) {
-					g.addEdge(node, depName);
-				}
-			});
+			Object.keys(pkg.dependencies)
+				.filter((depName) => !(argv.ignorePkgs ?? []).includes(depName))
+				.forEach((depName) => {
+					if (packages.find((p) => p.name === depName)) {
+						g.addEdge(node, depName);
+					}
+				});
 		}
 
-		if (pkg.devDependencies) {
-			Object.keys(pkg.devDependencies).forEach((depName) => {
-				if (packages.find((p) => p.name === depName)) {
-					const edge = g.addEdge(node, depName);
-					edge.set('style', 'dashed');
-				}
-			});
+		if (!argv.excludeDev && pkg.devDependencies) {
+			Object.keys(pkg.devDependencies)
+				.filter((depName) => !(argv.ignorePkgs ?? []).includes(depName))
+				.forEach((depName) => {
+					if (packages.find((p) => p.name === depName)) {
+						const edge = g.addEdge(node, depName);
+						edge.set('style', 'dashed');
+					}
+				});
 		}
 
-		if (pkg.peerDependencies) {
-			Object.keys(pkg.peerDependencies).forEach((depName) => {
-				if (packages.find((p) => p.name === depName)) {
-					const edge = g.addEdge(node, depName);
-					edge.set('style', 'dotted');
-				}
-			});
+		if (!argv.excludePeer && pkg.peerDependencies) {
+			Object.keys(pkg.peerDependencies)
+				.filter((depName) => !(argv.ignorePkgs ?? []).includes(depName))
+				.forEach((depName) => {
+					if (packages.find((p) => p.name === depName)) {
+						const edge = g.addEdge(node, depName);
+						edge.set('style', 'dotted');
+					}
+				});
 		}
 	});
 
