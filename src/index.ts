@@ -57,8 +57,12 @@ getPackages().then((packages) => {
 			([name, version]) => `${name}@${version}`
 		);
 		assert(
-			!!peers.filter((peer) => !devs.includes(peer)).length &&
-				!!devs.filter((dev) => !peers.includes(dev)).length,
+			!!peers
+				.filter((peer) => peer.startsWith('@moodlenet/'))
+				.filter((peer) => !devs.includes(peer)).length &&
+				!!devs
+					.filter((dev) => dev.startsWith('@moodlenet/'))
+					.filter((dev) => !peers.includes(dev)).length,
 			`peers and dev deps not congruent in ${pkg.name}`
 		);
 
