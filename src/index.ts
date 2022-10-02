@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { Package } from '@lerna/package';
 import { getPackages } from '@lerna/project';
 import assert from 'assert';
 import fs from 'fs';
@@ -45,25 +46,24 @@ getPackages().then((packages) => {
 	}
 
 	packages.forEach((pkg) => {
-		if (pkg.name === '@moodlenet/core') {
+		if (shouldSkip(pkg)) {
 			return;
 		}
 		assert(pkg.peerDependencies, `no peerDependencies in ${pkg.name} !`);
 		assert(pkg.devDependencies, `no devDependencies in ${pkg.name} !`);
-		const peers = Object.entries(pkg.peerDependencies).map(
-			([name, version]) => `${name}@${version}`
-		);
-		const devs = Object.entries(pkg.devDependencies).map(
-			([name, version]) => `${name}@${version}`
-		);
+		const mn_peers = Object.entries(pkg.peerDependencies)
+			.map(([name, version]) => `${name}@${version}`)
+			.filter((dev) => dev.startsWith('@moodlenet/'))
+			.sort();
+		const mn_devs = Object.entries(pkg.devDependencies)
+			.map(([name, version]) => `${name}@${version}`)
+			.filter((dev) => dev.startsWith('@moodlenet/'))
+			.sort();
 		assert(
-			!!peers
-				.filter((peer) => peer.startsWith('@moodlenet/'))
-				.filter((peer) => !devs.includes(peer)).length &&
-				!!devs
-					.filter((dev) => dev.startsWith('@moodlenet/'))
-					.filter((dev) => !peers.includes(dev)).length,
-			`peers and dev deps not congruent in ${pkg.name}`
+			String(mn_peers) === String(mn_devs),
+			`peers and dev deps not congruent in ${pkg.name}
+mn_devs:${mn_devs.join(',')}
+mn_peers:${mn_peers.join(',')}`
 		);
 
 		const node = g.addNode(pkg.name);
@@ -90,12 +90,14 @@ getPackages().then((packages) => {
 		// }
 
 		if (pkg.peerDependencies) {
-			Object.keys(pkg.peerDependencies).forEach((depName) => {
-				if (packages.find((p) => p.name === depName)) {
-					const edge = g.addEdge(node, depName);
-					edge.set('style', 'dotted');
-				}
-			});
+			Object.keys(pkg.peerDependencies)
+				.filter((pkg) => !shouldSkip(pkg))
+				.forEach((depName) => {
+					if (packages.find((p) => p.name === depName)) {
+						const edge = g.addEdge(node, depName);
+						edge.set('style', 'dotted');
+					}
+				});
 		}
 	});
 
@@ -119,3 +121,11 @@ getPackages().then((packages) => {
 		}
 	}
 });
+
+function shouldSkip(pkg_or_name: Package | string) {
+	const pkg =
+		typeof pkg_or_name === 'string'
+			? { name: pkg_or_name, private: false }
+			: pkg_or_name;
+	return pkg.private || pkg.name === '@moodlenet/core';
+}
